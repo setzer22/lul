@@ -17,6 +17,102 @@ pub fn locate_lulfile() -> Option<PathBuf> {
     }
     None
 }
+pub fn populate_runtime_fns(runtime: &mlua::Lua) {
+    let globals = runtime.globals();
+
+    globals
+        .set(
+            "os_shell",
+            runtime
+                .create_function(|runtime, (cmd, capture_out): (String, bool)| {
+                    if capture_out {
+                        let output = std::process::Command::new("sh")
+                            .arg("-c")
+                            .arg(cmd)
+                            .output()
+                            .unwrap();
+
+                        let output_table = runtime.create_table().unwrap();
+                        output_table
+                            .set("out", String::from_utf8(output.stdout).unwrap())
+                            .unwrap();
+                        output_table
+                            .set("err", String::from_utf8(output.stderr).unwrap())
+                            .unwrap();
+                        output_table
+                            .set("status", output.status.code().unwrap())
+                            .unwrap();
+
+                        Ok(output_table)
+                    } else {
+                        let status = std::process::Command::new("sh")
+                            .arg("-c")
+                            .arg(cmd)
+                            .status()
+                            .unwrap();
+
+                        let output_table = runtime.create_table().unwrap();
+                        output_table.set("status", status.code().unwrap()).unwrap();
+
+                        Ok(output_table)
+                    }
+                })
+                .unwrap(),
+        )
+        .unwrap();
+    globals
+        .set(
+            "os_exit",
+            runtime
+                .create_function::<_, (), _>(|_, code: i32| std::process::exit(code))
+                .unwrap(),
+        )
+        .unwrap();
+    globals
+        .set(
+            "cd",
+            runtime
+                .create_function(|_, path: String| {
+                    std::env::set_current_dir(path).unwrap();
+                    Ok(())
+                })
+                .unwrap(),
+        )
+        .unwrap();
+    globals
+        .set(
+            "getenv",
+            runtime
+                .create_function(|_, key: String| Ok(std::env::var(key).unwrap_or_default()))
+                .unwrap(),
+        )
+        .unwrap();
+    globals
+        .set(
+            "setenv",
+            runtime
+                .create_function(|_, (key, value): (String, String)| {
+                    std::env::set_var(key, value);
+                    Ok(())
+                })
+                .unwrap(),
+        )
+        .unwrap();
+    globals
+        .set(
+            "workdir",
+            runtime
+                .create_function(|_, ()| {
+                    Ok(std::env::current_dir()
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                        .to_owned())
+                })
+                .unwrap(),
+        )
+        .unwrap();
+}
 
 pub fn main() {
     let args = std::env::args().collect::<Vec<String>>();
@@ -26,6 +122,7 @@ pub fn main() {
     }
 
     let runtime = mlua::Lua::new();
+    populate_runtime_fns(&runtime);
 
     let Some(lulfile) = locate_lulfile() else {
         eprintln!("Error: No lulfile found in current or parent directories.");
@@ -44,7 +141,7 @@ pub fn main() {
         std::process::exit(1);
     }
 
-    let task_name = &args[1];
+    let task_name = &args[1].replace('-', "_");
 
     // Find function with the given task name and call it
     let Ok(task_fn) = runtime
@@ -56,7 +153,7 @@ pub fn main() {
     };
 
     let mut fn_args = vec![];
-    for arg in &args[1..] {
+    for arg in &args[2..] {
         let Ok(lua_val) = runtime.load(arg).eval::<mlua::Value>() else {
             eprintln!("Error: Failed to evaluate argument: '{}'", arg);
             std::process::exit(1);
@@ -66,8 +163,8 @@ pub fn main() {
 
     match task_fn.call::<_, ()>(mlua::MultiValue::from_vec(fn_args)) {
         Ok(_) => (),
-        Err(_) => {
-            eprintln!("Error: Task failed: '{}'", task_name);
+        Err(err) => {
+            eprintln!("Error: Task {task_name} failed: '{err}'");
             std::process::exit(1);
         }
     };

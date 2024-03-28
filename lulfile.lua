@@ -1,3 +1,3 @@
 function run()
-    sh("ls -l")
+    sh(`ls -l {HOME}`)
 end
