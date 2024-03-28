@@ -46,6 +46,8 @@ cargo build --release
 Here's an example `lulfile` to get you started. 
 
 ```lua
+local buildDir = "./webapp/build"
+
 -- Install dependencies
 function setup()
     sh(`npm install`)
