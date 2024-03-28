@@ -41,6 +41,41 @@ cargo build --release
 - Copy the resulting binary wherever you want, you'll find it under
   `target/release/lul`
 
+## Example
+
+Here's an example `lulfile` to get you started. 
+
+```lua
+-- Install dependencies
+function setup()
+    sh(`npm install`)
+end
+
+-- Start the development server
+function start()
+    sh(`node webapp/app.js`)
+end
+
+-- Run tests
+function test()
+    sh(`npm test`)
+end
+
+-- Build the project for production
+function build()
+    sh(`npm run build --prefix webapp`)
+    print(`Build completed. Files are in ${buildDir}`)
+end
+
+-- Deploy the build to a hypothetical deployment service
+function deploy()
+    build()
+    sh(`scp -r ${buildDir} user@deployment-server:/path/to/deployment`)
+    print("Deployment successful.")
+end
+
+```
+
 ## Why Luau and not Lua?
 
 The reason Luau was chosen is that it supports string interpolation, something
