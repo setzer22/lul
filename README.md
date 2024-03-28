@@ -66,13 +66,13 @@ end
 -- Build the project for production
 function build()
     sh(`npm run build --prefix webapp`)
-    print(`Build completed. Files are in ${buildDir}`)
+    print(`Build completed. Files are in {buildDir}`)
 end
 
 -- Deploy the build to a hypothetical deployment service
 function deploy()
     build()
-    sh(`scp -r ${buildDir} user@deployment-server:/path/to/deployment`)
+    sh(`scp -r {buildDir} user@deployment-server:/path/to/deployment`)
     print("Deployment successful.")
 end
 
