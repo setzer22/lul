@@ -1,4 +1,6 @@
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
+
+use luau_ast_rs::ast::Comment;
 
 /// The lulfile is a file called lulfile, Lulfile or .lulfile in the current
 /// directory, or any parent directory up to the root.
@@ -114,6 +116,84 @@ pub fn populate_runtime_fns(runtime: &mlua::Lua) {
         .unwrap();
 }
 
+#[derive(Clone)]
+pub struct TaskMetadata {
+    tags: Vec<String>,
+}
+
+impl TaskMetadata {
+    pub fn try_from_comment(comment: &str) -> Option<Self> {
+        // Comment format: "-- @task #tag1 #tag2 .. #tagN"
+
+        if !comment.starts_with("-- @task") {
+            return None;
+        }
+
+        let mut tags = vec![];
+        for word in comment.split_whitespace() {
+            if word.starts_with('#') {
+                tags.push(word.to_string());
+            }
+        }
+
+        Some(TaskMetadata { tags: tags })
+    }
+}
+
+pub fn parse_task_comments(code: &str) -> HashMap<String, TaskMetadata> {
+    use luau_ast_rs::{
+        ast::{FunctionDef, LocalFunctionDef, StmtStatus},
+        parser::Parser,
+    };
+
+    let chunk = Parser::new(code)
+        .parse()
+        .unwrap_or_else(|err| panic!("Lua code does not parse, we should've failed by now {err}"));
+
+    let mut result = HashMap::new();
+
+    for item in chunk {
+        match item {
+            StmtStatus::Some(stmt, comments) => match stmt {
+                luau_ast_rs::ast::Stmt::FunctionDef(FunctionDef { name, .. })
+                | luau_ast_rs::ast::Stmt::LocalFunctionDef(LocalFunctionDef { name, .. }) => {
+                    //println!("Function {name} found with comments:\n{comments:?}",);
+
+                    // WIP: Here
+                    let metadata = comments
+                        .iter()
+                        .filter_map(|x| match x {
+                            Comment::Leading(comment) => {
+                                if let Some(metadata) = TaskMetadata::try_from_comment(comment) {
+                                    Some(metadata)
+                                } else {
+                                    None
+                                }
+                            }
+                            Comment::Trailing(_) => None,
+                        })
+                        .collect::<Vec<_>>();
+
+                    if metadata.len() > 1 {
+                        eprintln!("Error: Multiple task comments found for function {name}");
+                        std::process::exit(1);
+                    }
+
+                    if metadata.len() == 1 {
+                        result.insert(name, metadata[0].clone());
+                    }
+                }
+                _ => (),
+            },
+            StmtStatus::None => (),
+            StmtStatus::PreAllocated => (),
+            StmtStatus::Error(_) => (),
+        }
+    }
+
+    result
+}
+
 pub fn main() {
     let args = std::env::args().collect::<Vec<String>>();
     if args.len() <= 1 {
@@ -140,6 +220,8 @@ pub fn main() {
         eprintln!("Error: Failed to load lulfile\n{}", err);
         std::process::exit(1);
     }
+
+    parse_task_comments(&lulfile_contents);
 
     let task_name = &args[1].replace('-', "_");
 
