@@ -36,10 +36,10 @@ pub fn populate_runtime_fns(runtime: &mlua::Lua) {
 
                         let output_table = runtime.create_table().unwrap();
                         output_table
-                            .set("out", String::from_utf8(output.stdout).unwrap())
+                            .set("out", String::from_utf8(output.stdout).unwrap().trim_end())
                             .unwrap();
                         output_table
-                            .set("err", String::from_utf8(output.stderr).unwrap())
+                            .set("err", String::from_utf8(output.stderr).unwrap().trim_end())
                             .unwrap();
                         output_table
                             .set("status", output.status.code().unwrap())
