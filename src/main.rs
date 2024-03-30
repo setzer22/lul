@@ -116,9 +116,9 @@ pub fn populate_runtime_fns(runtime: &mlua::Lua) {
         .unwrap();
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TaskMetadata {
-    tags: Vec<String>,
+    pub tags: Vec<String>,
 }
 
 impl TaskMetadata {
@@ -136,7 +136,7 @@ impl TaskMetadata {
             }
         }
 
-        Some(TaskMetadata { tags: tags })
+        Some(TaskMetadata { tags })
     }
 }
 
@@ -221,9 +221,18 @@ pub fn main() {
         std::process::exit(1);
     }
 
-    parse_task_comments(&lulfile_contents);
+    let metadata = parse_task_comments(&lulfile_contents);
 
     let task_name = &args[1].replace('-', "_");
+
+    // Get the metadata for this task
+    let Some(_task_meta) = metadata.get(task_name) else {
+        eprintln!(
+            "Error: Task not found: '{}'. Functions must be annotated with -- @task.",
+            task_name
+        );
+        std::process::exit(1);
+    };
 
     // Find function with the given task name and call it
     let Ok(task_fn) = runtime
