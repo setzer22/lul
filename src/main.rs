@@ -227,10 +227,16 @@ pub fn main() {
 
     // Get the metadata for this task
     let Some(_task_meta) = metadata.get(task_name) else {
-        eprintln!(
-            "Error: Task not found: '{}'. Functions must be annotated with -- @task.",
-            task_name
-        );
+        let hint = if runtime
+            .globals()
+            .get::<_, mlua::Function>(task_name.as_str())
+            .is_ok()
+        {
+            "\nHint: Function exists in file, but is not annotated with -- @task."
+        } else {
+            ""
+        };
+        eprintln!("Error: Task not found: '{task_name}'{hint}");
         std::process::exit(1);
     };
 

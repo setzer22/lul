@@ -43,33 +43,34 @@ cargo build --release
 
 ## Example
 
-Here's an example `lulfile` to get you started. 
+Here's an example `lulfile` to get you started. Note how task functions must be
+prefixed by a comment `-- @task`.
 
 ```lua
 local buildDir = "./webapp/build"
 
--- Install dependencies
+-- @task
 function setup()
     sh(`npm install`)
 end
 
--- Start the development server
+-- @task
 function start()
     sh(`node webapp/app.js`)
 end
 
--- Run tests
+-- @task
 function test()
     sh(`npm test`)
 end
 
--- Build the project for production
+-- @task
 function build()
     sh(`npm run build --prefix webapp`)
     print(`Build completed. Files are in {buildDir}`)
 end
 
--- Deploy the build to a hypothetical deployment service
+-- @task
 function deploy()
     build()
     sh(`scp -r {buildDir} user@deployment-server:/path/to/deployment`)
