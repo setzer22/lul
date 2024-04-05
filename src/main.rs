@@ -83,6 +83,20 @@ pub fn populate_runtime_fns(runtime: &mlua::Lua) {
         .unwrap();
     globals
         .set(
+            "canonicalize",
+            runtime
+                .create_function(|_, path: String| {
+                    Ok(std::fs::canonicalize(path)
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                        .to_owned())
+                })
+                .unwrap(),
+        )
+        .unwrap();
+    globals
+        .set(
             "getenv",
             runtime
                 .create_function(|_, key: String| Ok(std::env::var(key).unwrap_or_default()))
