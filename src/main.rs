@@ -128,6 +128,8 @@ pub fn populate_runtime_fns(runtime: &mlua::Lua) {
                 .unwrap(),
         )
         .unwrap();
+
+    globals.set("OS", std::env::consts::OS).unwrap();
 }
 
 #[derive(Clone, Debug)]
